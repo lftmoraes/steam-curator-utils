@@ -8,9 +8,10 @@ from bs4 import BeautifulSoup
 from time import time
 
 
-def extract_data(html_fragment:str):
-''' extracts all relevant data from html fragment '''
+def extract_recommendations(html_fragment:str):
+''' extracts all relevant data from html fragment containing recommendations '''
 # use beautifulsoup to parse? use regex?
+  return recommendations  # as dict?
 
 
 def has_error(response:str):
@@ -24,8 +25,8 @@ def has_error(response:str):
   return False
 
 
-def get_recommendations(curator:str, start:int, count:int):  # do we need option to inject session?
-''' wraps steam api for requesting a curator's recommendations '''
+def get_filtered_recommendations(curator:str, start:int, count:int):  # do we need option to inject session?
+''' wraps steam api for requesting curator recommendations '''
 
   # just need some nice way of writing this...
   base_url = f"https://store.steampowered.com/curator/{curator}/ajaxgetfilteredrecommendations/"
@@ -46,14 +47,14 @@ def get_recommendations(curator:str, start:int, count:int):  # do we need option
 
 
 def scrape_recommendations(curator:str):
-''' makes all requests to scrape curator reviews '''
+''' makes a series of requests to scrape all recommendations of a curator '''
 
   start = 0
   count = 10
 
   while True:
 
-    json_object = get_recommendations(curator, start, count)
+    json_object = get_filtered_recommendations(curator, start, count)
 
     # check for issues with response
     if has_error(json_object):
