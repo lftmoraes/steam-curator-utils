@@ -25,3 +25,9 @@ Scrape failed! Check log file for details.
 [EXIT]
 ---
 
+NOTES:
+- total count does not match sum of recommend, informative, not recommend
+
+TODO:
+- support scraping of "Read the full review"
+
