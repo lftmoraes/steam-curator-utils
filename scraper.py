@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from time import sleep
+from datetime import datetime
 
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -18,7 +19,7 @@ def extract_recommendations(html_fragment:str):
   ''' extracts all relevant data from html fragment containing recommendations '''
   # use beautifulsoup to parse? use regex?
 
-  soup = BeautifulSoup(html_fragment)
+  soup = BeautifulSoup(html_fragment, features="html.parser")
   logging.debug(soup.prettify())
   
   recommendations = []
@@ -55,6 +56,8 @@ def get_filtered_recommendations(curator:str, start:int, count:int):  # do we ne
   params = f"?query&start={start}&count={count}&dynamic_data=&tagids=&sort=recent&app_types=&curations=&reset=false"
   query = base_url + params
 
+  logging.debug("query: %s", query)
+
   try:
 
     response = requests.get(query)
@@ -76,7 +79,7 @@ def get_filtered_recommendations(curator:str, start:int, count:int):  # do we ne
 def scrape_recommendations(curator:str):
   ''' makes a series of requests to scrape all recommendations of a curator '''
 
-  start = 0
+  start = 1
   count = 10
 
   while True:
@@ -84,7 +87,7 @@ def scrape_recommendations(curator:str):
     response_object = get_filtered_recommendations(curator, start, count)
 
     # check for issues with response
-    if response_object['success'] != '1':
+    if response_object['success'] != '1':  # success==2 seems to be "Curator not found" or some catch-all that includes it
       # retry? handle error? raise error?
       logging.debug("success!=1")
       #raise RuntimeError("Ran into issue with response")  # add stacktrace
@@ -109,7 +112,7 @@ def run(curator):
 
   try:
 
-    with open("output.csv", "w") as csvfile:  # want "scrape_<curator>_<rundate>.csv"
+    with open(f"output_{curator}_{datetime.now().timestamp()}.csv", "w") as csvfile:  # want "scrape_<curator>_<rundate>.csv"
       writer = csv.writer(csvfile)
       writer.writerow(HEADER)
 
@@ -120,6 +123,7 @@ def run(curator):
           writer.writerow(recommendation.values())
           #write lines to csv
 
+  # except requests.exceptions.ConnectionError as ex: RETRY
   except Exception as ex:
     raise RuntimeError("Something went wrong") from ex
 
