@@ -26,8 +26,21 @@ Scrape failed! Check log file for details.
 ---
 
 NOTES:
-- total count does not match sum of recommend, informative, not recommend
+- total count does not match sum of (recommend, informative, not recommend). probably deleted items?
 
 TODO:
-- support scraping of "Read the full review"
+- add better error handling
+  - write to log file
+  - capture connection errors and retry
+- add status bar
+- add progress bar to gui (use ttk.ProgressBar widget)
+- step-wise operation of scraping function
+- add file "save-as" dialog (use tkinter.filedialog.SaveAs)
+- pyinstaller bundling for linux
+- pyinstaller bundling for windows
+- test with different encoding
+- how to test???
+
+STRETCH:
+- add request for curator info so we can have a picture and name and confirm curator before scraping
 
