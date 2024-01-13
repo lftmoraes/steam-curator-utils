@@ -12,7 +12,7 @@ from datetime import datetime
 logging.getLogger().setLevel(logging.DEBUG)
 
 
-HEADER = ["game", "link", "review_date", "review_type", "review_text"]
+HEADER = ["game", "link", "review_date", "review_type", "review_text", "review_readmore"]
 
 
 def extract_recommendations(html_fragment:str):
@@ -24,15 +24,19 @@ def extract_recommendations(html_fragment:str):
   
   recommendations = []
   for recommendation_fragment in soup.div.find_all("div", recursive=False):
-     game = recommendation_fragment.find("img").get("alt")
-     link = recommendation_fragment.find(class_="recommendation_link").get("href")
-     review_date = recommendation_fragment.find(class_="curator_review_date").string  # do we parse?
-     #review_type = recommendation_fragment.find(class_="color_informational").string
-     review_text = str(recommendation_fragment.find(class_="recommendation_desc").string).strip()
+    game = recommendation_fragment.find("img").get("alt")
+    link = recommendation_fragment.find(class_="recommendation_link").get("href")
+    review_date = recommendation_fragment.find(class_="curator_review_date").string  # do we parse?
+    #review_type = recommendation_fragment.find(class_="color_informational").string
+    review_text = str(recommendation_fragment.find(class_="recommendation_desc").string).strip()
 
-     review_type = "Recommended" if recommendation_fragment.find(class_="color_recommended") is not None else "Informational" if recommendation_fragment.find(class_="color_informational") is not None else "Not Recommended"
-     
-     recommendations.append({'game':game, 'link':link, 'review_date':review_date, 'review_type':review_type, 'review_text':review_text})
+    review_type = "Recommended" if recommendation_fragment.find(class_="color_recommended") is not None else "Informational" if recommendation_fragment.find(class_="color_informational") is not None else "Not Recommended"
+
+    review_readmore = recommendation_fragment.find(class_="recommendation_readmore")
+    if review_readmore is not None:
+      review_readmore = review_readmore.a.get("href")
+    
+    recommendations.append({'game':game, 'link':link, 'review_date':review_date, 'review_type':review_type, 'review_text':review_text, 'review_readmore':review_readmore})
      
   return recommendations  # as list of dicts?
 
