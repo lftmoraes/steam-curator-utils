@@ -2,32 +2,35 @@ import logging
 import csv
 import json
 import requests
+import traceback
 from argparse import ArgumentParser
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from time import sleep
 from datetime import datetime
+from random import random
 
 
-logging.getLogger().setLevel(logging.DEBUG)
+#logging.getLogger().setLevel(logging.DEBUG)
+#logging.getLogger().setLevel(logging.INFO)
 
 
 HEADER = ["game", "link", "review_date", "review_type", "review_text", "review_readmore"]
+MAX_RETRIES = 3
+TIMEOUT = 60
 
 
-def extract_recommendations(html_fragment:str):
+def extract_recommendations(html_fragment:str) -> list[dict[str,str]]:
   ''' extracts all relevant data from html fragment containing recommendations '''
-  # use beautifulsoup to parse? use regex?
 
   soup = BeautifulSoup(html_fragment, features="html.parser")
-  logging.debug(soup.prettify())
+  #logging.debug(soup.prettify())
   
   recommendations = []
   for recommendation_fragment in soup.div.find_all("div", recursive=False):
     game = recommendation_fragment.find("img").get("alt")
     link = recommendation_fragment.find(class_="recommendation_link").get("href")
     review_date = recommendation_fragment.find(class_="curator_review_date").string  # do we parse?
-    #review_type = recommendation_fragment.find(class_="color_informational").string
     review_text = str(recommendation_fragment.find(class_="recommendation_desc").string).strip()
 
     review_type = "Recommended" if recommendation_fragment.find(class_="color_recommended") is not None else "Informational" if recommendation_fragment.find(class_="color_informational") is not None else "Not Recommended"
@@ -38,44 +41,33 @@ def extract_recommendations(html_fragment:str):
     
     recommendations.append({'game':game, 'link':link, 'review_date':review_date, 'review_type':review_type, 'review_text':review_text, 'review_readmore':review_readmore})
      
-  return recommendations  # as list of dicts?
+  return recommendations
 
 
-#def has_error(response:str):
-#''' returns true if there is an issue with the response '''
-#
-#  if response.status_code != 200: # requires raw response... maybe convert to "is None" check (and return None when status code != 200)?
-#    return True
-#  if response['success'] != '1':  # requires json parsing...
-#    return True
-#
-#  return False
-
-
-def get_filtered_recommendations(curator:str, start:int, count:int):  # do we need option to inject session?
+def get_filtered_recommendations(curator:str, start:int, count:int, session=None) -> object:
   ''' wraps steam api for requesting curator recommendations '''
 
-  # just need some nice way of writing this...
+  # includes unused params present in web ui requests
   base_url = f"https://store.steampowered.com/curator/{curator}/ajaxgetfilteredrecommendations/"
   params = f"?query&start={start}&count={count}&dynamic_data=&tagids=&sort=recent&app_types=&curations=&reset=false"
+
   query = base_url + params
+  logging.info("query: %s", query)
 
-  logging.debug("query: %s", query)
+  response = None
+  if session is not None:
+    response = session.get(query, timeout=TIMEOUT)
+  else:
+    response = requests.get(query, timeout=TIMEOUT)
+  logging.debug("response received:\n%s", response.text)
 
-  try:
+  if response.status_code != 200:  # break into different exceptions depending on status code? some may be recoverable
+    raise RuntimeError(f"Request error. Status code {response.status_code}.")
 
-    response = requests.get(query)
-    logging.debug("response received:\n%s", response.text)
+  json_object = json.loads(response.text)
 
-    json_object = None
-    if response.status_code == 200:
-      json_object = json.loads(response.text)
-      logging.debug("json parsing successful")
-    else:
-      raise RuntimeError("Ran into issue with response")  # add stacktrace
-
-  except Exception as ex:
-    raise RuntimeError("Ran into an issue") from ex
+  if json_object['success'] != 1:  # success==2 seems to be "Curator not found" or some catch-all that includes it
+    raise RuntimeError(f"API error. API code {json_object['success']}.")
 
   return json_object
 
@@ -85,38 +77,51 @@ def scrape_recommendations(curator:str):
 
   start = 1
   count = 10
+  retries = 0
+  session = requests.Session()
 
   while True:
 
-    response_object = get_filtered_recommendations(curator, start, count)
 
-    # check for issues with response
-    if response_object['success'] != '1':  # success==2 seems to be "Curator not found" or some catch-all that includes it
-      # retry? handle error? raise error?
-      logging.debug("success!=1")
-      #raise RuntimeError("Ran into issue with response")  # add stacktrace
+    # make request and handle errors
+    try:
 
-    # return response as an element of a generator
+      response_object = get_filtered_recommendations(curator, start, count, session)
+
+    except requests.ConnectionError as ex:  # RETRY; haven't been able to test...
+      if retries < MAX_RETRIES:
+        logging.info("retrying...")
+        logging.info(traceback.format_exc())
+        session = requests.Session()  # renew session
+        sleep(5 + 15*retries)
+        retries += 1
+        continue
+      else:
+        raise RuntimeError("Max retries attempted.") from ex
+
+
+    # return response as next element of generator
     yield response_object
 
     # check if done
-    if (start + count) >= response_object['total_count']:  # requires json parsing...
+    if (start + count) >= response_object['total_count']:
       break
 
     # prepare for next request
     start += count
+    retries = 0
 
-    # insert random delay of approx 0.5s
-    sleep(0.5)
+    # insert random delay of approx 1.0s  # doesn't seem to be needed
+    #sleep(0.5 + random())
 
   return # end generator
 
 
-def run(curator):
+def run(curator:str):
 
   try:
 
-    with open(f"output_{curator}_{datetime.now().timestamp()}.csv", "w") as csvfile:  # want "scrape_<curator>_<rundate>.csv"
+    with open(f"recs_{curator}_{datetime.now().strftime('%Y-%m-%d_%Hh%Mm%Ss')}.csv", "w") as csvfile:
       writer = csv.writer(csvfile)
       writer.writerow(HEADER)
 
@@ -125,14 +130,17 @@ def run(curator):
 
         for recommendation in recommendation_batch:
           writer.writerow(recommendation.values())
-          #write lines to csv
 
-  # except requests.exceptions.ConnectionError as ex: RETRY
+    logging.info("done scraping!")
+
   except Exception as ex:
-    raise RuntimeError("Something went wrong") from ex
+    raise RuntimeError(f"Ran into a fatal error.\n\n{traceback.format_exc()}") from ex
+    #raise RuntimeError("Ran into a fatal error.") from ex
 
 
 if __name__ == "__main__":
+
+  # will fill this out at a later time
 
   # need an argument for 'curator'
 

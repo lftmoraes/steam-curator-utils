@@ -29,10 +29,6 @@ NOTES:
 - total count does not match sum of (recommend, informative, not recommend). probably deleted items?
 
 TODO:
-- add better error handling
-  - write to log file
-  - capture connection errors and retry
-- add status bar
 - add progress bar to gui (use ttk.ProgressBar widget)
 - step-wise operation of scraping function
 - add file "save-as" dialog (use tkinter.filedialog.SaveAs)
