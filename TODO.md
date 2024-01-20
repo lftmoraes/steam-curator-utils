@@ -32,10 +32,7 @@ TODO:
 - add progress bar to gui (use ttk.ProgressBar widget)
 - step-wise operation of scraping function
 - add file "save-as" dialog (use tkinter.filedialog.SaveAs)
-- pyinstaller bundling for linux
-- pyinstaller bundling for windows
-- test with different encoding
-- how to test???
+- how to automate testing?
 
 STRETCH:
 - add request for curator info so we can have a picture and name and confirm curator before scraping
