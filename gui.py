@@ -37,7 +37,7 @@ class SteamRecommendationScraper:
     self.root.bind("<Return>", self.scrape)
 
 
-  def scrape(self, *args):
+  def scrape(self):
 
     self.curator_entry.state(["disabled"])
     self.scrape_button.state(["disabled"])
@@ -50,6 +50,7 @@ class SteamRecommendationScraper:
       with open("error.txt", "w") as fd:
         traceback.print_exc(file=fd)
       self.status.set("Scrape FAILED! Check error file for details.")
+      return
 
     self.status.set("Scrape complete!")
     self.scrape_button.state(["!disabled"])
