@@ -3,12 +3,11 @@ import csv
 import json
 import requests
 import traceback
-from argparse import ArgumentParser
-from tqdm import tqdm
+#from argparse import ArgumentParser
 from bs4 import BeautifulSoup
 from time import sleep
 from datetime import datetime
-from random import random
+#from random import random
 
 
 #logging.getLogger().setLevel(logging.DEBUG)
@@ -24,7 +23,7 @@ def extract_recommendations(html_fragment:str) -> list[dict[str,str]]:
   ''' extracts all relevant data from html fragment containing recommendations '''
 
   soup = BeautifulSoup(html_fragment, features="html.parser")
-  #logging.debug(soup.prettify())
+  logging.debug(soup.prettify())
   
   recommendations = []
   for recommendation_fragment in soup.div.find_all("div", recursive=False):
@@ -82,7 +81,6 @@ def scrape_recommendations(curator:str):
 
   while True:
 
-
     # make request and handle errors
     try:
 
@@ -91,7 +89,7 @@ def scrape_recommendations(curator:str):
     except requests.ConnectionError as ex:  # RETRY; haven't been able to test...
       if retries < MAX_RETRIES:
         logging.info("retrying...")
-        logging.info(traceback.format_exc())
+        logging.debug(traceback.format_exc())
         session = requests.Session()  # renew session
         sleep(5 + 15*retries)
         retries += 1
@@ -121,7 +119,9 @@ def run(curator:str):
 
   try:
 
-    with open(f"recs_{curator}_{datetime.now().strftime('%Y-%m-%d_%Hh%Mm%Ss')}.csv", "w") as csvfile:
+    output_filename = f"recs_{curator}_{datetime.now().strftime('%Y-%m-%d_%Hh%Mm%Ss')}.csv"
+
+    with open(output_filename, "w", newline='', encoding="utf-8") as csvfile:
       writer = csv.writer(csvfile)
       writer.writerow(HEADER)
 
@@ -134,8 +134,7 @@ def run(curator:str):
     logging.info("done scraping!")
 
   except Exception as ex:
-    raise RuntimeError(f"Ran into a fatal error.\n\n{traceback.format_exc()}") from ex
-    #raise RuntimeError("Ran into a fatal error.") from ex
+    raise RuntimeError("Ran into a fatal error.") from ex
 
 
 if __name__ == "__main__":
