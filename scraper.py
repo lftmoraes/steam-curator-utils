@@ -43,12 +43,18 @@ def extract_recommendations(html_fragment:str) -> list[dict[str,str]]:
   return recommendations
 
 
-def get_filtered_recommendations(curator:str, start:int, count:int, session=None) -> object:
+def get_filtered_recommendations(curator:str, start:int, count:int, tagids='', curations='', session=None) -> object:
   ''' wraps steam api for requesting curator recommendations '''
+  '''
+    start - Position to start pagination. First element is 0.
+    count - Number of entries to retrieve. Typical is 10. Most likely works up to 100.
+    tagids - Comma separated list of tag ids to filter by. Separate with '%2C'
+    curations - Comma separated list of values in {0,1,2} that correspond to RECOMMENDED, NOT-RECOMMENDED, INFORMATIONAL to filter by. Separate with '%2C'.
+  '''
 
   # includes unused params present in web ui requests
   base_url = f"https://store.steampowered.com/curator/{curator}/ajaxgetfilteredrecommendations/"
-  params = f"?query&start={start}&count={count}&dynamic_data=&tagids=&sort=recent&app_types=&curations=&reset=false"
+  params = f"?query&start={start}&count={count}&dynamic_data=&tagids={tagids}&sort=recent&app_types=&curations={curations}&reset=false"
 
   query = base_url + params
   logging.info("query: %s", query)
@@ -74,7 +80,7 @@ def get_filtered_recommendations(curator:str, start:int, count:int, session=None
 def scrape_recommendations(curator:str):
   ''' makes a series of requests to scrape all recommendations of a curator '''
 
-  start = 1
+  start = 0
   count = 10
   retries = 0
   session = requests.Session()
